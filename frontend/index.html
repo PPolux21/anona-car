@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#070b12">
+  <title>Carro RC Global</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #070b12;
+      --panel: #101722;
+      --panel-light: #182333;
+      --text: #eef6ff;
+      --muted: #8fa2b8;
+      --accent: #38d9a9;
+      --danger: #ff5d73;
+      --border: rgba(255, 255, 255, 0.09);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: clamp(16px, 3vw, 32px);
+      display: grid;
+      place-items: center;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 10%, rgba(56, 217, 169, 0.12), transparent 32rem),
+        var(--background);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main {
+      width: min(100%, 1040px);
+      display: grid;
+      gap: 18px;
+    }
+
+    header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    h1 { margin: 0; font-size: clamp(1.5rem, 4vw, 2.35rem); }
+    header p { margin: 5px 0 0; color: var(--muted); }
+
+    .estado {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .estado::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--danger);
+      box-shadow: 0 0 16px currentColor;
+    }
+
+    .estado.conectado::before { background: var(--accent); }
+
+    .panel {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: color-mix(in srgb, var(--panel) 90%, transparent);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+    }
+
+    .video {
+      position: relative;
+      aspect-ratio: 4 / 3;
+      background: #020407;
+    }
+
+    #video-stream {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      image-rendering: auto;
+    }
+
+    .video-info {
+      position: absolute;
+      inset: 14px 14px auto auto;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(0, 0, 0, 0.58);
+      font-size: 0.78rem;
+      backdrop-filter: blur(8px);
+    }
+
+    .controles {
+      padding: clamp(18px, 4vw, 30px);
+      display: grid;
+      grid-template-columns: repeat(3, minmax(72px, 105px));
+      justify-content: center;
+      gap: 12px;
+      user-select: none;
+      touch-action: none;
+    }
+
+    button {
+      min-height: 68px;
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      color: var(--text);
+      background: var(--panel-light);
+      font: inherit;
+      font-size: 1.05rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 90ms ease, border-color 90ms ease, background 90ms ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:hover { border-color: rgba(56, 217, 169, 0.55); }
+    button:focus-visible { outline: 3px solid rgba(56, 217, 169, 0.42); outline-offset: 3px; }
+    button.activo, button:active { transform: scale(0.95); background: #244038; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .arriba { grid-column: 2; }
+    .izquierda { grid-column: 1; grid-row: 2; }
+    .stop { grid-column: 2; grid-row: 2; color: #fff; background: #812b3a; }
+    .derecha { grid-column: 3; grid-row: 2; }
+    .abajo { grid-column: 2; grid-row: 3; }
+
+    .telemetria {
+      padding: 16px 20px;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      background: rgba(0, 0, 0, 0.16);
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(0.78rem, 2.8vw, 0.95rem);
+    }
+
+    .ayuda {
+      margin: -4px 0 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 560px) {
+      header { align-items: start; flex-direction: column; }
+      .panel { border-radius: 14px; }
+      .controles { grid-template-columns: repeat(3, minmax(68px, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Carro RC Global</h1>
+        <p>Video y control en tiempo real</p>
+      </div>
+      <div id="estado-conexion" class="estado" role="status" aria-live="polite">Desconectado</div>
+    </header>
+
+    <section class="panel" aria-label="Cámara del vehículo">
+      <div class="video">
+        <img id="video-stream" alt="Transmisión en vivo de la ESP32-CAM">
+        <div id="video-info" class="video-info">Esperando video</div>
+      </div>
+
+      <div id="controles" class="controles" aria-label="Controles de movimiento">
+        <button class="arriba" data-command="W" aria-label="Avanzar">W<br>▲</button>
+        <button class="izquierda" data-command="A" aria-label="Girar a la izquierda">A ◀</button>
+        <button class="stop" data-command="STOP" aria-label="Detener">STOP</button>
+        <button class="derecha" data-command="D" aria-label="Girar a la derecha">▶ D</button>
+        <button class="abajo" data-command="S" aria-label="Retroceder">▼<br>S</button>
+      </div>
+
+      <div id="telemetria-gps" class="telemetria" aria-live="polite">
+        <span id="gps-latitud">Latitud: ---</span>
+        <span aria-hidden="true">|</span>
+        <span id="gps-longitud">Longitud: ---</span>
+      </div>
+    </section>
+
+    <p class="ayuda">Mantén W, A, S o D. Suelta para detener. Espacio o Escape = STOP.</p>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    'use strict';
+
+    const socket = io({
+      auth: { rol: 'frontend' },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelayMax: 5000,
+    });
+
+    const estadoConexion = document.querySelector('#estado-conexion');
+    const video = document.querySelector('#video-stream');
+    const videoInfo = document.querySelector('#video-info');
+    const gpsLatitud = document.querySelector('#gps-latitud');
+    const gpsLongitud = document.querySelector('#gps-longitud');
+    const botones = [...document.querySelectorAll('[data-command]')];
+    const botonesMovimiento = botones.filter((boton) => boton.dataset.command !== 'STOP');
+    const mapaTeclas = new Map([
+      ['KeyW', 'W'],
+      ['ArrowUp', 'W'],
+      ['KeyA', 'A'],
+      ['ArrowLeft', 'A'],
+      ['KeyS', 'S'],
+      ['ArrowDown', 'S'],
+      ['KeyD', 'D'],
+      ['ArrowRight', 'D'],
+    ]);
+
+    let comandoActivo = null;
+    let repetidor = null;
+    let framePendiente = null;
+    let renderProgramado = false;
+    let ultimoFrameEn = 0;
+    const teclasPresionadas = new Map();
+
+    function actualizarEstado(conectado, texto) {
+      estadoConexion.classList.toggle('conectado', conectado);
+      estadoConexion.textContent = texto;
+      botones.forEach((boton) => { boton.disabled = !conectado; });
+    }
+
+    function marcarBoton(comando) {
+      botonesMovimiento.forEach((boton) => {
+        boton.classList.toggle('activo', boton.dataset.command === comando);
+      });
+    }
+
+    function emitir(comando) {
+      if (socket.connected) socket.emit('comando_front', comando);
+    }
+
+    function iniciarComando(comando) {
+      if (!socket.connected || comando === 'STOP') return;
+      if (comandoActivo === comando && repetidor) return;
+
+      comandoActivo = comando;
+      marcarBoton(comando);
+      clearInterval(repetidor);
+      emitir(comando);
+      repetidor = setInterval(() => emitir(comandoActivo), 150);
+    }
+
+    function detener() {
+      clearInterval(repetidor);
+      repetidor = null;
+      comandoActivo = null;
+      teclasPresionadas.clear();
+      marcarBoton(null);
+      emitir('STOP');
+    }
+
+    socket.on('connect', () => {
+      actualizarEstado(true, 'Conectado');
+      emitir('STOP');
+    });
+
+    socket.on('disconnect', () => {
+      clearInterval(repetidor);
+      repetidor = null;
+      comandoActivo = null;
+      teclasPresionadas.clear();
+      marcarBoton(null);
+      actualizarEstado(false, 'Reconectando…');
+    });
+
+    socket.on('connect_error', () => actualizarEstado(false, 'Sin conexión'));
+    socket.on('error_protocolo', (mensaje) => console.warn(mensaje));
+
+    socket.on('actualizacion_video', (frameBase64) => {
+      if (typeof frameBase64 !== 'string' || frameBase64.length === 0) return;
+      framePendiente = frameBase64;
+      if (renderProgramado) return;
+
+      renderProgramado = true;
+      requestAnimationFrame(() => {
+        const ahora = performance.now();
+        const fps = ultimoFrameEn ? Math.min(99, 1000 / (ahora - ultimoFrameEn)) : 0;
+        ultimoFrameEn = ahora;
+        video.src = framePendiente.startsWith('data:')
+          ? framePendiente
+          : `data:image/jpeg;base64,${framePendiente}`;
+        videoInfo.textContent = fps ? `${fps.toFixed(1)} FPS` : 'Video recibido';
+        renderProgramado = false;
+      });
+    });
+
+    socket.on('actualizacion_gps', (datos) => {
+      if (!datos || typeof datos !== 'object') return;
+
+      const { latitud, longitud } = datos;
+      if (
+        typeof latitud !== 'number'
+        || typeof longitud !== 'number'
+        || !Number.isFinite(latitud)
+        || !Number.isFinite(longitud)
+        || latitud < -90
+        || latitud > 90
+        || longitud < -180
+        || longitud > 180
+      ) {
+        return;
+      }
+
+      gpsLatitud.textContent = `Latitud: ${latitud.toFixed(6)}`;
+      gpsLongitud.textContent = `Longitud: ${longitud.toFixed(6)}`;
+    });
+
+    botones.forEach((boton) => {
+      boton.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        boton.setPointerCapture?.(event.pointerId);
+        const comando = boton.dataset.command;
+        comando === 'STOP' ? detener() : iniciarComando(comando);
+      });
+
+      if (boton.dataset.command !== 'STOP') {
+        boton.addEventListener('pointerup', detener);
+        boton.addEventListener('pointercancel', detener);
+        boton.addEventListener('lostpointercapture', () => {
+          if (comandoActivo === boton.dataset.command) detener();
+        });
+      }
+
+      // Permite activar los botones con Enter desde navegación por teclado.
+      boton.addEventListener('click', (event) => {
+        if (event.detail !== 0) return;
+        const comando = boton.dataset.command;
+        if (comando === 'STOP') {
+          detener();
+          return;
+        }
+        iniciarComando(comando);
+        setTimeout(detener, 250);
+      });
+    });
+
+    window.addEventListener('keydown', (event) => {
+      if (event.code === 'Space' || event.code === 'Escape') {
+        event.preventDefault();
+        detener();
+        return;
+      }
+
+      const comando = mapaTeclas.get(event.code);
+      if (!comando) return;
+      event.preventDefault();
+      if (!event.repeat) teclasPresionadas.set(event.code, comando);
+      iniciarComando(comando);
+    });
+
+    window.addEventListener('keyup', (event) => {
+      if (!mapaTeclas.has(event.code)) return;
+      event.preventDefault();
+      teclasPresionadas.delete(event.code);
+
+      const comandosRestantes = [...teclasPresionadas.values()];
+      if (comandosRestantes.length) {
+        iniciarComando(comandosRestantes.at(-1));
+      } else {
+        detener();
+      }
+    });
+
+    window.addEventListener('blur', detener);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) detener();
+    });
+    window.addEventListener('beforeunload', () => emitir('STOP'));
+
+    setInterval(() => {
+      if (ultimoFrameEn && performance.now() - ultimoFrameEn > 2000) {
+        videoInfo.textContent = 'Señal de video interrumpida';
+      }
+    }, 1000);
+
+    actualizarEstado(false, 'Conectando…');
+  </script>
+</body>
+</html>
