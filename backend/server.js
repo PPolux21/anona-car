@@ -18,7 +18,7 @@ const MIN_FRAME_INTERVAL_MS = Number.parseInt(
   10,
 );
 const MIN_GPS_INTERVAL_MS = Number.parseInt(
-  process.env.MIN_GPS_INTERVAL_MS || '1000',
+  process.env.MIN_GPS_INTERVAL_MS || '500',
   10,
 );
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
@@ -36,6 +36,7 @@ if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
 
 const app = express();
 const httpServer = http.createServer(app);
+let ultimaUbicacionGps = null;
 
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
@@ -94,6 +95,10 @@ io.on('connection', (socket) => {
 
   console.info(`[socket] conectado rol=${rol} id=${socket.id}`);
 
+  if (rol === 'frontend' && ultimaUbicacionGps) {
+    socket.emit('actualizacion_gps', ultimaUbicacionGps);
+  }
+
   socket.on('comando_front', (payload) => {
     if (rol !== 'frontend' || typeof payload !== 'string') return;
 
@@ -116,7 +121,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const { latitud, longitud } = payload;
+    const { latitud, longitud, fuente, satelites } = payload;
     if (
       typeof latitud !== 'number'
       || typeof longitud !== 'number'
@@ -130,11 +135,40 @@ io.on('connection', (socket) => {
       return;
     }
 
+    if (
+      fuente !== undefined
+      && (
+        typeof fuente !== 'string'
+        || fuente.trim().length === 0
+        || fuente.trim().length > 40
+      )
+    ) {
+      return;
+    }
+
+    if (
+      satelites !== undefined
+      && (
+        !Number.isInteger(satelites)
+        || satelites < 0
+        || satelites > 99
+      )
+    ) {
+      return;
+    }
+
     const ahora = Date.now();
     if (ahora - socket.data.ultimoGpsEn < MIN_GPS_INTERVAL_MS) return;
 
     socket.data.ultimoGpsEn = ahora;
-    io.to('frontend').emit('actualizacion_gps', { latitud, longitud });
+    ultimaUbicacionGps = {
+      latitud,
+      longitud,
+      fuente: fuente?.trim() || 'GPS',
+      satelites: satelites ?? null,
+      actualizadoEn: new Date(ahora).toISOString(),
+    };
+    io.to('frontend').emit('actualizacion_gps', ultimaUbicacionGps);
   });
 
   socket.on('video_stream', (payload) => {

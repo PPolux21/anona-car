@@ -151,6 +151,15 @@
       font-size: clamp(0.78rem, 2.8vw, 0.95rem);
     }
 
+    .mapa-gps {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .mapa-gps:hover { text-decoration: underline; }
+    .mapa-gps[hidden] { display: none; }
+
     .ayuda {
       margin: -4px 0 0;
       text-align: center;
@@ -193,6 +202,14 @@
         <span id="gps-latitud">Latitud: ---</span>
         <span aria-hidden="true">|</span>
         <span id="gps-longitud">Longitud: ---</span>
+        <span aria-hidden="true">|</span>
+        <span id="gps-fuente">Fuente: ---</span>
+        <span aria-hidden="true">|</span>
+        <span id="gps-satelites">Satélites: ---</span>
+        <span id="gps-mapa-separador" aria-hidden="true" hidden>|</span>
+        <a id="gps-mapa" class="mapa-gps" target="_blank" rel="noopener noreferrer" hidden>
+          Ver en mapa
+        </a>
       </div>
     </section>
 
@@ -215,6 +232,10 @@
     const videoInfo = document.querySelector('#video-info');
     const gpsLatitud = document.querySelector('#gps-latitud');
     const gpsLongitud = document.querySelector('#gps-longitud');
+    const gpsFuente = document.querySelector('#gps-fuente');
+    const gpsSatelites = document.querySelector('#gps-satelites');
+    const gpsMapaSeparador = document.querySelector('#gps-mapa-separador');
+    const gpsMapa = document.querySelector('#gps-mapa');
     const botones = [...document.querySelectorAll('[data-command]')];
     const botonesMovimiento = botones.filter((boton) => boton.dataset.command !== 'STOP');
     const mapaTeclas = new Map([
@@ -309,7 +330,7 @@
     socket.on('actualizacion_gps', (datos) => {
       if (!datos || typeof datos !== 'object') return;
 
-      const { latitud, longitud } = datos;
+      const { latitud, longitud, fuente, satelites } = datos;
       if (
         typeof latitud !== 'number'
         || typeof longitud !== 'number'
@@ -325,6 +346,14 @@
 
       gpsLatitud.textContent = `Latitud: ${latitud.toFixed(6)}`;
       gpsLongitud.textContent = `Longitud: ${longitud.toFixed(6)}`;
+      gpsFuente.textContent = `Fuente: ${typeof fuente === 'string' ? fuente : 'GPS'}`;
+      gpsSatelites.textContent = `Satélites: ${Number.isInteger(satelites) ? satelites : '---'}`;
+
+      const latitudMapa = latitud.toFixed(6);
+      const longitudMapa = longitud.toFixed(6);
+      gpsMapa.href = `https://www.openstreetmap.org/?mlat=${latitudMapa}&mlon=${longitudMapa}#map=17/${latitudMapa}/${longitudMapa}`;
+      gpsMapaSeparador.hidden = false;
+      gpsMapa.hidden = false;
     });
 
     botones.forEach((boton) => {
