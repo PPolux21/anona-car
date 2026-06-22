@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#070b12">
   <title>Carro RC Global</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
   <style>
     :root {
       color-scheme: dark;
@@ -160,6 +163,19 @@
     .mapa-gps:hover { text-decoration: underline; }
     .mapa-gps[hidden] { display: none; }
 
+    /* Estilos del nuevo mapa interactivo */
+    #mapa-contenedor {
+      height: 280px;
+      width: 100%;
+      border-top: 1px solid var(--border);
+      display: none;
+      z-index: 1;
+    }
+
+    #mapa-contenedor.activo {
+      display: block;
+    }
+
     .ayuda {
       margin: -4px 0 0;
       text-align: center;
@@ -211,12 +227,16 @@
           Ver en mapa
         </a>
       </div>
+
+      <div id="mapa-contenedor" aria-label="Mapa en tiempo real"></div>
     </section>
 
     <p class="ayuda">Mantén W, A, S o D. Suelta para detener. Espacio o Escape = STOP.</p>
   </main>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
   <script>
     'use strict';
 
@@ -238,6 +258,12 @@
     const gpsMapa = document.querySelector('#gps-mapa');
     const botones = [...document.querySelectorAll('[data-command]')];
     const botonesMovimiento = botones.filter((boton) => boton.dataset.command !== 'STOP');
+
+    // Variables para el control del mapa
+    const mapaContenedor = document.querySelector('#mapa-contenedor');
+    let mapaInteractivo = null;
+    let marcadorVehiculo = null;
+
     const mapaTeclas = new Map([
       ['KeyW', 'W'],
       ['ArrowUp', 'W'],
@@ -344,6 +370,7 @@
         return;
       }
 
+      // Actualiza los textos de telemetría superior
       gpsLatitud.textContent = `Latitud: ${latitud.toFixed(6)}`;
       gpsLongitud.textContent = `Longitud: ${longitud.toFixed(6)}`;
       gpsFuente.textContent = `Fuente: ${typeof fuente === 'string' ? fuente : 'GPS'}`;
@@ -351,9 +378,29 @@
 
       const latitudMapa = latitud.toFixed(6);
       const longitudMapa = longitud.toFixed(6);
+
+      // Actualiza el botón clásico por si falla algo
       gpsMapa.href = `https://www.openstreetmap.org/?mlat=${latitudMapa}&mlon=${longitudMapa}#map=17/${latitudMapa}/${longitudMapa}`;
       gpsMapaSeparador.hidden = false;
       gpsMapa.hidden = false;
+
+      // Lógica de actualización e instanciación del mapa interactivo
+      if (!mapaInteractivo) {
+        mapaContenedor.classList.add('activo');
+        mapaInteractivo = L.map('mapa-contenedor').setView([latitud, longitud], 17);
+
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; OpenStreetMap'
+        }).addTo(mapaInteractivo);
+
+        marcadorVehiculo = L.marker([latitud, longitud]).addTo(mapaInteractivo);
+
+        setTimeout(() => mapaInteractivo.invalidateSize(), 200);
+      } else {
+        marcadorVehiculo.setLatLng([latitud, longitud]);
+        mapaInteractivo.setView([latitud, longitud]);
+      }
     });
 
     botones.forEach((boton) => {
@@ -372,7 +419,6 @@
         });
       }
 
-      // Permite activar los botones con Enter desde navegación por teclado.
       boton.addEventListener('click', (event) => {
         if (event.detail !== 0) return;
         const comando = boton.dataset.command;
