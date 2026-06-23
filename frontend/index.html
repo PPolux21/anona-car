@@ -112,6 +112,7 @@
       grid-template-columns: repeat(3, minmax(72px, 105px));
       justify-content: center;
       gap: 12px;
+      /* Evita la selección en el contenedor general por si acaso */
       user-select: none;
       touch-action: none;
     }
@@ -128,6 +129,14 @@
       cursor: pointer;
       transition: transform 90ms ease, border-color 90ms ease, background 90ms ease;
       -webkit-tap-highlight-color: transparent;
+
+      /* BLOQUEO DE MENÚS Y SELECCIÓN PARA MÓVILES */
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      touch-action: none;
     }
 
     button:hover { border-color: rgba(56, 217, 169, 0.55); }
@@ -207,11 +216,11 @@
       </div>
 
       <div id="controles" class="controles" aria-label="Controles de movimiento">
-        <button class="arriba" data-command="W" aria-label="Avanzar">W<br>▲</button>
-        <button class="izquierda" data-command="A" aria-label="Girar a la izquierda">A ◀</button>
-        <button class="stop" data-command="STOP" aria-label="Detener">STOP</button>
-        <button class="derecha" data-command="D" aria-label="Girar a la derecha">▶ D</button>
-        <button class="abajo" data-command="S" aria-label="Retroceder">▼<br>S</button>
+        <button class="arriba" data-command="W" aria-label="Avanzar" oncontextmenu="return false;">W<br>▲</button>
+        <button class="izquierda" data-command="A" aria-label="Girar a la izquierda" oncontextmenu="return false;">A ◀</button>
+        <button class="stop" data-command="STOP" aria-label="Detener" oncontextmenu="return false;">STOP</button>
+        <button class="derecha" data-command="D" aria-label="Girar a la derecha" oncontextmenu="return false;">▶ D</button>
+        <button class="abajo" data-command="S" aria-label="Retroceder" oncontextmenu="return false;">▼<br>S</button>
       </div>
 
       <div id="telemetria-gps" class="telemetria" aria-live="polite">
